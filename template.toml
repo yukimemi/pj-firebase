@@ -1,0 +1,64 @@
+name = "pj-firebase"
+version = "0.1.0"
+
+# Firebase Hosting + Firestore + Storage + Vercel mirror layer.
+# Optional — only compose into a preset when the project actually
+# uses Firebase. Sits at the top of the stack:
+# pj-base → pj-pnpm → pj-react-web → pj-firebase.
+
+# firebase.json — Tera-rendered for the hosting site name.
+# `when = "once"` because each project tweaks rewrites / headers
+# / emulators differently after init.
+[[file]]
+src = "firebase.json.tera"
+dst = "firebase.json"
+how = "overwrite"
+when = "once"
+
+# Starter Firestore rules — signed-in-only baseline. Each project
+# replaces these with its real schema, so once-only.
+[[file]]
+src = "firestore.rules"
+how = "overwrite"
+when = "once"
+
+# Starter Storage rules — same shape as firestore.rules.
+[[file]]
+src = "storage.rules"
+how = "overwrite"
+when = "once"
+
+# Vercel deploy config (mirror of Firebase Hosting). Static enough
+# to overwrite always — buildCommand / outputDirectory / framework
+# are uniform across yukimemi/* React projects, and the SPA-style
+# rewrite is the same. Project-specific headers / redirects can
+# go upstream into this template if they recur.
+[[file]]
+src = "vercel.json"
+how = "overwrite"
+when = "always"
+
+# GitHub Actions deploy workflow. `.template` suffix keeps GitHub
+# Actions from auto-running it inside this repo. `when = "once"`
+# so each consumer can swap the projectId / channel / secrets
+# wiring without `kata apply` reverting it.
+[[file]]
+src = ".github/workflows/deploy.yml.template"
+dst = ".github/workflows/deploy.yml"
+how = "overwrite"
+when = "once"
+
+# .env.example — documents the VITE_FIREBASE_* surface so a fresh
+# clone knows which secrets to populate.
+[[file]]
+src = ".env.example"
+how = "overwrite"
+when = "once"
+
+# Firebase-layer agent guidance.
+[[file]]
+src = "AGENTS.md.firebase"
+dst = "AGENTS.md"
+how = "merge-section"
+when = "always"
+marker = { begin = "<!-- kata:agents:firebase:begin -->", end = "<!-- kata:agents:firebase:end -->" }

@@ -1,0 +1,17 @@
+rules_version = '2';
+// Starter rules: signed-in users with verified emails can read /
+// write everything. Replace with the real schema before the
+// project ships — these defaults are intentionally permissive so
+// `firebase emulators:start` works against a fresh init.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true;
+    }
+
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}
