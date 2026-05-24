@@ -30,7 +30,7 @@ when = "once"
 
 # Vercel deploy config (mirror of Firebase Hosting). Static enough
 # to overwrite always — buildCommand / outputDirectory / framework
-# are uniform across yukimemi/* React projects, and the SPA-style
+# are uniform across React projects using these templates, and the SPA-style
 # rewrite is the same. Project-specific headers / redirects can
 # go upstream into this template if they recur.
 [[file]]
