@@ -48,17 +48,29 @@ two half-live pipelines:
 Only relevant on the Vercel path. The first two fail in ways that
 do not resemble their cause:
 
-- **Export by method name, never `export default`.** Vercel's
-  Node runtime reads a default export as `(req, res) => void` and
-  discards the return value, so a handler that builds a Web
-  `Response` appears to return nothing. `export const POST = …` /
-  `export const GET = …` get the `Request`/`Response` signature.
-- **Relative imports inside function code carry `.js`** —
-  `./_lib/http.js`, `../../shared/foo.js` — even though the file
-  on disk is `.ts`. Functions are not bundled; Node ESM resolves
-  the specifier at runtime. Browser code under `src/` stays
-  extensionless because Vite bundles it, so one repo runs both
-  conventions and getting it backwards breaks in production only.
+- **Match the export form to what the runtime does with it.** The
+  Node runtime accepts three shapes, and one is a trap in a
+  codebase built on Web `Response`: a bare
+  `export default function handler(req, res)` is the *legacy Node
+  handler*, whose return value is discarded — build a `Response`
+  inside it and the client receives nothing. The Web-standard
+  shapes are named method exports (`export const POST = …`,
+  `export function GET(request)`) and a default export of an
+  object carrying a `fetch` method
+  (`export default { fetch(request) { … } }`). Prefer the method
+  exports: one file, one route, one verb per export.
+- **Under `"type": "module"`, relative specifiers in function code
+  carry `.js`** — `./_lib/http.js`, `../../shared/foo.js`, even
+  though the file on disk is `.ts`. That is the shape this stack
+  produces: the pnpm layer's `package.json` is ESM, and standalone
+  `api/*.ts` functions are transpiled per file rather than
+  bundled, so Node's ESM loader resolves the specifier verbatim
+  and refuses an extensionless one
+  (production-only `ERR_MODULE_NOT_FOUND`). Browser code under
+  `src/` stays extensionless because Vite bundles it, so one repo
+  runs both conventions. Framework route handlers that go through
+  a real bundler (Next.js) are exempt — check which side a route
+  is on before copying either rule.
 - A dev-time Vite plugin that mounts `api/` on the dev server is
   worth its ~100 lines: `pnpm dev` becomes the whole app and the
   Vercel CLI leaves the local loop. Note that it also masks both
