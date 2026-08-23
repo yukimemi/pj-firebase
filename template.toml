@@ -1,7 +1,9 @@
 name = "pj-firebase"
-version = "0.2.0"
+version = "0.3.0"
 
-# Firebase Hosting + Firestore + Storage + Vercel mirror layer.
+# Firestore + Storage + two deploy targets: Firebase Hosting and
+# Vercel. Hosting only fits a fully static app; a project with
+# server-side routes drops deploy.yml and ships to Vercel alone.
 # Optional — only compose into a preset when the project actually
 # uses Firebase. Sits at the top of the stack:
 # pj-base → pj-pnpm → pj-react-web → pj-firebase.

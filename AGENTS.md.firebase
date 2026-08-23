@@ -4,17 +4,66 @@ This block is owned by `yukimemi/pj-firebase` and re-applied on
 every `kata apply`. Edits go upstream to the template, not to
 this file.
 
-### Hosting
+### Deploy target: pick one, then write the choice down
 
-- **Firebase Hosting** is the primary target — `firebase deploy
-  --only hosting` from local, or the `Deploy to Firebase
-  Hosting` GitHub Actions workflow from `main`.
-- **Vercel** runs in parallel as a same-stack mirror so PR
-  previews work out of the box. Keep `vercel.json` and
-  `firebase.json`'s rewrites/headers in sync — both should
-  rewrite `**` → `/index.html` for SPA routing and emit
+This layer ships both halves — `firebase.json` for Firebase
+Hosting, `vercel.json` for Vercel — because which one a project
+ends up on depends on something the template cannot see: whether
+the app is static.
+
+- **Static front end, Firebase for data.** Firebase Hosting is
+  the target (`firebase deploy --only hosting` locally, or the
+  `Deploy to Firebase Hosting` workflow from `main`), and Vercel
+  runs in parallel as a same-stack mirror so PR previews work out
+  of the box. Keep `vercel.json` and `firebase.json`'s
+  rewrites/headers in sync — both should rewrite `**` →
+  `/index.html` for SPA routing and emit
   `Cross-Origin-Opener-Policy: same-origin-allow-popups`
   (Firebase Auth popup needs this).
+- **Any server-side code — an `api/` directory of Vercel
+  Functions, Next.js route handlers, an LLM call whose key must
+  not reach the browser — makes Vercel the only target that runs
+  the whole app.** Hosting serves static files; it cannot execute
+  a function, so a Hosting deploy publishes a UI whose every
+  server route fails. That is a fork in the road, not a
+  preference: once such a route exists the Hosting path is dead.
+
+On the Vercel-only path, make the choice stick rather than leave
+two half-live pipelines:
+
+- Delete `.github/workflows/deploy.yml`; the
+  `once_applied = true` entry it leaves in `.kata/applied.toml`
+  is what stops the next `kata apply` re-creating it.
+- Keep `firebase.json` / `.firebaserc` anyway — rules deploys
+  still need them (`firebase deploy --only
+  firestore:rules,storage`), Hosting config or not.
+- Put the env in the Vercel project (`vercel env ls`). The
+  GitHub secrets listed below feed the Hosting workflow only.
+- Record it in the project's own section, below the last
+  `kata:*:end`. This block goes on offering Hosting as an option
+  on every apply; the project section is where the answer lives.
+
+### Server routes on Vercel
+
+Only relevant on the Vercel path. The first two fail in ways that
+do not resemble their cause:
+
+- **Export by method name, never `export default`.** Vercel's
+  Node runtime reads a default export as `(req, res) => void` and
+  discards the return value, so a handler that builds a Web
+  `Response` appears to return nothing. `export const POST = …` /
+  `export const GET = …` get the `Request`/`Response` signature.
+- **Relative imports inside function code carry `.js`** —
+  `./_lib/http.js`, `../../shared/foo.js` — even though the file
+  on disk is `.ts`. Functions are not bundled; Node ESM resolves
+  the specifier at runtime. Browser code under `src/` stays
+  extensionless because Vite bundles it, so one repo runs both
+  conventions and getting it backwards breaks in production only.
+- A dev-time Vite plugin that mounts `api/` on the dev server is
+  worth its ~100 lines: `pnpm dev` becomes the whole app and the
+  Vercel CLI leaves the local loop. Note that it also masks both
+  mistakes above, since Vite bundles and invokes the handler
+  directly.
 
 ### Rules
 
@@ -23,6 +72,11 @@ this file.
   schema before shipping. Verified-email is required at the
   baseline so Google sign-in's pre-verification flow is the
   default.
+- Both files are `when = "once"`, so kata never writes them
+  again. Once replaced they **are** the app's access control:
+  read a diff against them as a security change, and never
+  "restore the baseline" on the strength of the paragraph above
+  still describing one.
 - Push rules with `firebase deploy --only firestore:rules,storage`
   (or via a project-side `scripts/deploy-rules.ts` helper —
   kakeizu has one as a reference).
@@ -54,13 +108,22 @@ Allow ~1–2 min for IAM propagation before testing.
 
 - `.env.example` documents the `VITE_FIREBASE_*` surface. Copy
   to `.env`, fill in from the Firebase console.
-- The deploy workflow rewrites `.env` from secrets at build time
-  (Vite inlines envs at compile time, so the build container
-  needs them, not the runtime).
-- Required GitHub secrets:
+- The Hosting deploy workflow rewrites `.env` from secrets at
+  build time (Vite inlines envs at compile time, so the build
+  container needs them, not the runtime).
+- GitHub secrets required **on the Hosting path**:
   - `FIREBASE_SERVICE_ACCOUNT` — JSON for a service account
     with the `Firebase Hosting Admin` role.
   - `VITE_FIREBASE_*` — one secret per `.env.example` entry.
+- On the Vercel-only path neither is needed: the same names go in
+  the Vercel project's environment variables, and server-side
+  keys stay **un-prefixed** so they never reach the bundle.
+  `VITE_FIREBASE_*` are public by design — the rules are the
+  protection, not the obscurity of those values.
+
+The `projectId` note below points at `deploy.yml`; on the
+Vercel-only path that file is gone and the project id lives in
+`.firebaserc` plus whatever the app reads at runtime.
 
 ### projectId
 
