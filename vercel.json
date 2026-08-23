@@ -3,7 +3,7 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/" }],
+  "rewrites": [{ "source": "/((?!api(?:/|$)).*)", "destination": "/" }],
   "headers": [
     {
       "source": "/(.*)",
