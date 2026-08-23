@@ -1,5 +1,5 @@
 name = "pj-firebase"
-version = "0.3.0"
+version = "0.4.0"
 
 # Firestore + Storage + two deploy targets: Firebase Hosting and
 # Vercel. Hosting only fits a fully static app; a project with
@@ -30,15 +30,28 @@ src = "storage.rules"
 how = "overwrite"
 when = "once"
 
-# Vercel deploy config (mirror of Firebase Hosting). Static enough
-# to overwrite always — buildCommand / outputDirectory / framework
-# are uniform across React projects using these templates, and the SPA-style
-# rewrite is the same. Project-specific headers / redirects can
-# go upstream into this template if they recur.
+# Vercel deploy config. Split ownership: this layer owns the keys
+# that are uniform across every project using these templates —
+# buildCommand / outputDirectory / framework, the SPA rewrite, the
+# COOP header — and nothing else. `regions`, `functions` (a
+# `maxDuration` raised for slow LLM calls, say), extra redirects
+# and any other key a project adds are the project's, and
+# `merge-json` leaves them alone; a blanket overwrite-always wiped
+# them on every apply. `merge-json` is usable here precisely
+# because `vercel.json` carries no comments — kata parses both
+# sides with strict serde_json, so a JSONC file could not use it.
 [[file]]
 src = "vercel.json"
-how = "overwrite"
+how = "merge-json"
 when = "always"
+paths = [
+  "$schema",
+  "buildCommand",
+  "outputDirectory",
+  "framework",
+  "rewrites",
+  "headers",
+]
 
 # GitHub Actions deploy workflow. `.template` suffix keeps GitHub
 # Actions from auto-running it inside this repo. `when = "once"`
